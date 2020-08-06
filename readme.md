@@ -28,17 +28,39 @@ avrdude.sh shellscript uses avrdude as flashing utility.
 If you want to add functionality, you can modify .pas source code and compile it with mikropascal to generate .hex flash file
 
 
-# Install shutdownbutton as a service
+# Install avrdude
 
 ~~~bash
 apt update
-apt install raspi-gpio
+apt -qy install avrdude
 #
-cp ./shutdownbutton /usr/local/sbin
-sudo chmod +x /usr/local/sbin/shutdownbutton 
+cd /usr/local/sbin
+wget -N https://raw.githubusercontent.com/rudiratlos/RPI_PowerMgmt/master/RPI_ShutDownReboot.hex
+wget -N https://raw.githubusercontent.com/rudiratlos/RPI_PowerMgmt/master/avrdude.sh
+chmod +x avrdude.sh
+~~~
+
+
+# Burn ATtiny45/85 with avrdude
+
+connect a stk500V2 compatible AVR programmer on rpi USB port
+
+~~~bash
+avrdude.sh
+~~~ 
+
+
+# Install shutdownbutton as a service
+
+~~~bash
+apt -qy install raspi-gpio 
+#
+cd /usr/local/sbin
+wget -N https://raw.githubusercontent.com/rudiratlos/RPI_PowerMgmt/master/shutdownbutton
+chmod +x shutdownbutton
 #
 /usr/local/sbin/shutdownbutton install
 #
 # finally reboot
-shutdown -h now
+reboot
 ~~~
