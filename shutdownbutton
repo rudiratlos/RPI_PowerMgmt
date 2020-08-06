@@ -103,6 +103,8 @@ EOF
 }
 
 function DO_install {
+#	apt -qy update
+	apt install -qy raspi-gpio
 	Create_service_file1
 	Create_service_file2
 	systemctl daemon-reload
