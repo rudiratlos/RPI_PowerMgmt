@@ -4,15 +4,17 @@ ATtiny45/85 as Powermanagement chip for RPI
 
 functions:
 
-- press push button for 1 second  to boot 
-- press push button for 3 seconds to initiate RPI shutdown, after 12 seconds switch off 5V power
+- press push button for 1 second  to switchON relais and rpi will boot 
+- press push button for 3 seconds to initiate clean shutdown, after 12 seconds Relais will switchOFF 5V power
+- service script 'shutdownbutton', simulates a 3 second button press, if OS command shutdown -h was executed (no push button was pressed)
 - status BiColor LED (red/green)  
 
 Video:
 
 [![video](./img/0.jpg)](//www.youtube.com/watch?v=cuHMuZBUYbw "powermanagement chip in action")
 
-shows startup, shutdown and switch off. Installed in a prototype. 
+video shows switchON, boot, ... , shutdown and switchOFF. (Installed in a prototype device).
+ 
 
 Schematic:
 
