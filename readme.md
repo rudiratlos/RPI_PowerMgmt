@@ -32,11 +32,8 @@ If you want to add functionality, you can modify .pas source code and compile it
 cp ./shutdownbutton /usr/local/sbin
 sudo chmod +x /usr/local/sbin/shutdownbutton 
 #
-cp ./shutdownbutton.service /lib/systemd/system/
-sudo chmod 644 /lib/systemd/system/shutdownbutton.service
-#
-sudo systemctl daemon-reload
-sudo systemctl enable shutdownbutton.service
+/usr/local/sbin/shutdownbutton install
 #
 # finally reboot
+shutdown -h now
 ~~~

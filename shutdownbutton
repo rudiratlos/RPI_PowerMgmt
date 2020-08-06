@@ -1,28 +1,137 @@
 #!/bin/bash
 # required package:
 # apt-get install raspi-gpio
-# edit area start
+##### edit area start
+scriptver="V1.4"
 gpionum=24
-cnt4shutdown=30
-# cnt*100ms 3sec -> 30
-# edit area end
+cnt4shutdown=3
+logf="/var/log/shutdownbutton.log"
+# cnt*1000ms 3sec -> 3
+##### edit area end
 #
-/usr/bin/raspi-gpio set $gpionum ip pu
-counter=0
-while true; do
- 	gpiolvl=$(/usr/bin/raspi-gpio get $gpionum | awk '{print $3;}')
-#	echo "$gpiolvl"
-	if [ "$gpiolvl" == "level=0" ] ; then
-#		echo "Button has been pressed..."
-		((counter = counter + 1))
-		if [ "$counter" -gt "$cnt4shutdown" ] ; then
-			logger -s -t shutdownbutton "Shutting Down..."
-			sudo shutdown -h now
-			sleep 30
+function DO_shutdown {
+	echo "Shutting Down..."
+	sudo shutdown -h now
+	/bin/sleep 30
+}
+
+function Switch_GPIO {
+# signal ATtiny to shutoff within next 20secs and do a shutdown
+	if [ "$gpionum" != "" ]; then
+        	echo "Signal PWRcontroller to power off..."
+        	/usr/bin/raspi-gpio set $gpionum op pn dl
+        	/bin/sleep 4
+        	/usr/bin/raspi-gpio set $gpionum op pn dh
+        	/usr/bin/raspi-gpio set $gpionum ip pu
+	else
+		echo "no GPIO for PowerOff signaling defined..."
+	fi
+}
+
+function Poll_GPIO {
+# poll GPIO for minimum 3 sec low signal and do shutdown
+	echo "Poll_GPIO START"
+	/usr/bin/raspi-gpio set $gpionum ip pu
+	counter=0
+	while true; do
+ 		gpiolvl=$(/usr/bin/raspi-gpio get $gpionum | awk '{print $3;}')
+#		echo "gpiolvl: $gpiolvl"
+		if [ "$gpiolvl" == "level=0" ] ; then
+			echo "Button pressed ($gpiolvl)..."
+			((counter = counter + 1))
+			if [ "$counter" -ge "$cnt4shutdown" ] ; then
+				/bin/sleep 3
+				DO_shutdown
+				counter=0
+			fi
+ 		else
 			counter=0
-		fi
- 	else
-		counter=0
- 	fi
- 	sleep 0.1
-done
+ 		fi
+ 		/bin/sleep 1
+	done
+}
+
+function Create_service_file1 {
+	fil="/lib/systemd/system/shutdownbutton.service"
+
+	cat <<EOF > "$fil"
+[Unit]
+Description=ShutdownButton Service
+After=multi-user.target
+
+[Service]
+Type=idle
+ExecStart=/usr/local/sbin/shutdownbutton pollgpio
+ExecStop=/usr/local/sbin/shutdownbutton settletime
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=ShutdownButton
+
+[Install]
+WantedBy=multi-user.target
+Alias=shutdownbutton.service
+EOF
+
+	chmod 644 "$fil"
+	chown root:root "$fil"
+}
+
+function Create_service_file2 {
+        fil="/lib/systemd/system/shutdownbuttonswitch.service"
+
+        cat <<EOF > "$fil"
+[Unit]
+Description=ShutdownButtonSwitch Service
+DefaultDependencies=no
+Before=poweroff.target halt.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/shutdownbutton switchoff
+RemainAfterExit=yes
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=ShutdownButtonSwitch
+
+[Install]
+WantedBy=poweroff.target halt.target
+Alias=shutdownbuttonswitch.service
+EOF
+
+        chmod 644 "$fil"
+        chown root:root "$fil"
+}
+
+function DO_install {
+	Create_service_file1
+	Create_service_file2
+	systemctl daemon-reload
+	systemctl enable shutdownbutton.service
+	systemctl enable shutdownbuttonswitch.service
+}
+
+# echo "start $0 $1 $2 $2"
+
+case "$1" in
+	install)
+		DO_install
+		;;
+	switchoff)
+		Switch_GPIO
+#		DO_shutdown
+		;;
+	pollgpio)
+		Poll_GPIO
+		;;
+        settletime)
+		echo "settletime"
+		/bin/sleep 4
+                ;;
+	version)
+		echo "$scriptver"
+		;;
+	*)
+		echo "$(basename $0) unknown option $1 $2 $3 $4"
+		echo "Usage: $(basename $0) switchoff | install | version"
+		exit 1
+esac
