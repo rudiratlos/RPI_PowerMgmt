@@ -7,26 +7,24 @@ program PumpShutdownReboot;  // Version 3.0
    - Push-Button shorts to GND and is connected to ATTiny and a RPI GPIO IN
             (do not use external PullUps, both will/should use internal PullUps).
             Relais will be switched ON, if there is a GND signal for longer than 1sec
-            Relais will be switched OFF after 20sec, if there is a GND signal for longer than 3secs
+            Relais will be switched OFF after 12sec, if there is a GND signal for longer than 3secs
    - Relais OUT (use Transistor driver) which will supply RPI backpowered on Pins 2&4 with 5V
-   - RPI PowerEnable is a RPI GPIO Out, which signals ATtiny that RPI is powered on.
-         If not used, leave this pin unconnected (internal PullUp is active)
 
    Functions:
      - LED dimming RED:         Relais is OFF, 3.3V not in allowed range -> 0V
      - LED steady  RED:         Relais is ON,  3.3V not in allowed range
      - LED blink   RED:         3.3V Overvoltage detected or
-                                    Relais will switch off in 20sec
+                                    Relais will switch off within 12sec
      - LED dimming GREEN:       Voltage was/is below 3.3V
-                                    will be reset to steady Green after 20sec
-                                    Powersupply is not sufficient
+                                    will be reset to steady Green after some secs
+                                    e.g. indicate Powersupply is not stable
      - LED steady  GREEN:       Relais is ON, 3.3V in allowed range
 
      ------------- ATtiny45/85 (5.5V Version) --------------
                             +---v---+
            (Relais Out) PB5 |1     8| VCC (5V from Powersupply)
            (/Button IN) PB3 |2     7| PB2 (AnalogIN 3.3V RPI Hdr-P1/Pin1)
-    (LED Anode Red OUT) PB4 |3     6| PB1 (IN  RPI PowerEnable from RPI e.g. Pin#35 GPIO#19 OUT)
+    (LED Anode Red OUT) PB4 |3     6| PB1 (DO NOT CONNECT, reserved for future use)
                         GND |4     5| PB0 (OUT LED Anode Green)
                             +-------+
      -------------------------------------------------------
@@ -39,6 +37,7 @@ program PumpShutdownReboot;  // Version 3.0
         avrdude -F -p attiny45 -P /dev/ttyACM0 -c stk500V2 -U lfuse:w:0xe2:m -U hfuse:w:0x5f:m -U flash:w:<file2flash>.hex
 
         use mikropascal to generate .hex flash file to program ATtiny *)
+
 const
   VCCmax=    5.8;   // 5.513V (back powered) max expected
   VCCmin=    4.6;   // 4.95 (battery powered) min expected
@@ -403,12 +402,12 @@ begin
         if ((Vin>=OK33VoltL) and (Vin<=OK33VoltH)) then
         begin
           rpiVOK:=true;
-          SetLED(green,pwmsteady);        // Voltage outside
+          SetLED(green,pwmsteady);        // Voltage in OK range
         end
         else
         begin
           rpiVOK:=false;                 // set only if Relais is on
-          SetLED(red, pwmsteady);        // Voltage in OK range
+          SetLED(red, pwmsteady);        // Voltage not OK
         end;
         
         if (rpiSTATE=rpiDOboot) then StartBlink(false);
@@ -459,7 +458,7 @@ begin
     repeat // RPI shutdown process (20sec)
       Input_Read;
       SetLED4Voltage;
-      delay_ms( wtim);
+      delay_ms(wtim);
       inc(gcnt);
     until (gcnt>=cntoffmax);
     gcnt:=0;
