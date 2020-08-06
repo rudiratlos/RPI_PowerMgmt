@@ -1,4 +1,4 @@
-program PumpShutdownReboot;  // Version 3.0
+program PumpShutdownReboot;  // Version 3.1
 (* Shutdown/Reboot function for RPI, with Voltage observation and
    Status signalling with BiColor LED with 3 Pins (red/green/GND).
    Use 330Ohm Resistor between LED Kathode and GND
@@ -63,7 +63,7 @@ const
 //time counter divideable by 'wtim'
   wtim=            12;           //  debounce 12msec; in PWM mode, pwmlow * wtim=2048 msec for dim up or dim down
   cntBootUp=      984 div wtim;  // <1sec Button has to be pressed to recognize a Bootstrap
-  cntShutDwn=    2976 div wtim;  // <3sec Button has to be pressed to recognize 
+  cntShutDwn=    2976 div wtim;  // <3sec Button has to be pressed to recognize
 //rpi_hal has 3000msec / 1000msec and 7msec debounce time
   cntoffmax=    12000 div wtim;  //  12sec waittime for RPI shutdown-/boot-process
   cntPwrENAmin=     3  *  wtim;  // minimum 36msec PwrEna
@@ -90,7 +90,7 @@ var
   rpiSTATE,LED,PWMidx,PWMmax: byte;
   cntPwrENA,gcnt,rcnt,pcnt,prcnt,ocnt,dcnt,blinkcnt,blinkmax,pat: word;
   Vref,Vin: real;
-  
+
 procedure SetRelais(ein:boolean);
 begin
   RelaisStat:=ein;
@@ -159,8 +159,8 @@ begin
              end
              else
              begin // just regular output
-               TCCR0A:=0; 
-               TCCR0B:=0; 
+               TCCR0A:=0;
+               TCCR0B:=0;
              end;
            end;
     red:   begin //LED red
@@ -170,10 +170,10 @@ begin
                GTCCR:=(1 shl PWM1B) or    // LED red use OCR1B // PB4:PWM, red LED
                       (2 shl COM1B0);     // Set the OC1B output line (red LED), Start Timer
              end
-             else 
+             else
              begin // just regular output
                TCCR1:=0;
-               GTCCR:=0; 
+               GTCCR:=0;
              end;
            end;
   end; // case
@@ -199,15 +199,15 @@ end;
 procedure StartBlink(alarm:boolean);
 begin
   blink:=true;
-  if alarm 
-    then blinkmax:=cntblinkAmaxc 
+  if alarm
+    then blinkmax:=cntblinkAmaxc
     else blinkmax:=cntblinkmaxc;
 end;
 
-procedure StopBlink; 
-begin 
-  blinkmax:=cntblinkmaxc; 
-  blink:=false; 
+procedure StopBlink;
+begin
+  blinkmax:=cntblinkmaxc;
+  blink:=false;
 end;
 
 procedure InitPWM;
@@ -224,7 +224,7 @@ var _ret:boolean; _cnt,_adc:word;
 begin
   ADCSRA:=ADCSRA or (1 shl ADSC); // Start Analog conversion
   _cnt:=0;
-  
+
   repeat
     delay_us(5); // wait for completion or timeout
     inc(_cnt);
@@ -239,18 +239,18 @@ begin
     110: begin // ADC is connected to internal 1.10V -> determine VCC/Vref
            Vref:=VCCok; VCCerr:=true; // real(1.10*1024.0) = 1126.4 ?? or 1.1*1023 = 1125.3
            if _ret and (_adc<>0) then Vref:=1126.4/real(_adc);
-           
-           if ((Vref<VCCmin) or (Vref>VCCmax)) 
-             then Vref:=VCCok 
+
+           if ((Vref<VCCmin) or (Vref>VCCmax))
+             then Vref:=VCCok
              else VCCerr:=false;
-             
+
            _ret:=(not VCCerr);
          end
     else begin
-           if _ret 
+           if _ret
              then Vin:=real(_adc)*real(Vref)/1024.0
              else Vin:=OK33Volt; // simulate ok value
-                                          
+
 (*           if (rpiSTATE<>rpiOFF) then Vin:=OK33Volt else Vin:=0; // simul, if Relais Out not used *)
          end;
   end; // case
@@ -328,20 +328,20 @@ begin
 
   InitACOMP;
   Vref:=VCCok;               // VCC default on ATtiny as Vref
-  if (pat<>pat_init) then
+//if (pat<>pat_init) then
   begin                      // regular start
     SetRelais (false);
     rpiSTATE:=rpiOFF;
     InitVARs  (0.0);
     InitADCandGetVref;
-  end
-  else
+  end;
+(*else
   begin // fast restart due to BrownOut, VCC problems....
     SetRelais (true);
     rpiSTATE:=rpiDOboot;
     InitVARs  (OK33Volt);
     InitADC   (0);
-  end;
+  end; *)
   InitPWM;
 end;
 
@@ -353,12 +353,12 @@ begin
   StartBlink(alarm);
   while (n < _5sec) do
   begin
-    if (j>blinkmax) then 
-    begin 
-      j:=0; 
+    if (j>blinkmax) then
+    begin
+      j:=0;
       ein:=(not ein);
     end else inc(j);
-        
+
     SetLED(green,pwmsteady);
     if ein then WritePWM(LEDon) else WritePWM(LEDoff);
     delay_ms(wtim);
@@ -409,7 +409,7 @@ begin
           rpiVOK:=false;                 // set only if Relais is on
           SetLED(red, pwmsteady);        // Voltage not OK
         end;
-        
+
         if (rpiSTATE=rpiDOboot) then StartBlink(false);
       end;
     end
@@ -424,7 +424,7 @@ begin
   begin // OverVoltage
     ovrVOLT:=true;
     rpiVOK:=false;
-    SetLED(red,pwmsteady); 
+    SetLED(red,pwmsteady);
     StartBlink(true);
   end;
 
@@ -433,14 +433,14 @@ begin
     if (blinkcnt<=(blinkmax shr 1))
       then WritePWM(LEDon)
       else WritePWM(LEDoff);
-    
-    if (blinkcnt>=blinkmax) 
-      then blinkcnt:=0 
+
+    if (blinkcnt>=blinkmax)
+      then blinkcnt:=0
       else inc(blinkcnt);
   end
   else
   begin
-    if RelaisStat        
+    if RelaisStat
       then WritePWM(LEDon)        // steady ON
       else WritePWM(LEDdim);      // RPI in OFF Status (LED PWM mode)
   end;
@@ -453,7 +453,7 @@ begin
   if stat then
   begin // switch Relais OFF
     rpiSTATE:=rpiDOshutdown;
-    
+
     gcnt:=0;
     repeat // RPI shutdown process (20sec)
       Input_Read;
@@ -462,7 +462,7 @@ begin
       inc(gcnt);
     until (gcnt>=cntoffmax);
     gcnt:=0;
-    
+
     SetRelais(false);
     rpiSTATE:=rpiOFF;
     InitVARs (0.0);
@@ -486,13 +486,13 @@ begin
   if (rpiSTATE=state) then
   begin
     bool:=true;
-    
+
     if (counter>=setOncount) then
     begin
       counter:=0;
       rpiSTATE:=nextstate;
     end else inc(counter);
-    
+
   end else bool:=false;
   rpiNextSTATE:=bool;
 end;
@@ -526,11 +526,11 @@ begin
   if (pcnt>0) then
   begin // reset after 3sec
     inc(prcnt);
-    if (prcnt>(cntPwrENAmax)) then 
-    begin 
-      prcnt:=0; 
-      pcnt:=0; 
-      tog:=false; 
+    if (prcnt>(cntPwrENAmax)) then
+    begin
+      prcnt:=0;
+      pcnt:=0;
+      tog:=false;
     end;
   end else prcnt:=0;
 
@@ -555,3 +555,4 @@ begin
     inc(gcnt);
   until false;
 end.
+
