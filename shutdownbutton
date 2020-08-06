@@ -1,0 +1,28 @@
+#!/bin/bash
+# required package:
+# apt-get install raspi-gpio
+# edit area start
+gpionum=24
+cnt4shutdown=30
+# cnt*100ms 3sec -> 30
+# edit area end
+#
+/usr/bin/raspi-gpio set $gpionum ip pu
+counter=0
+while true; do
+ 	gpiolvl=$(/usr/bin/raspi-gpio get $gpionum | awk '{print $3;}')
+#	echo "$gpiolvl"
+	if [ "$gpiolvl" == "level=0" ] ; then
+#		echo "Button has been pressed..."
+		((counter = counter + 1))
+		if [ "$counter" -gt "$cnt4shutdown" ] ; then
+			logger -s -t shutdownbutton "Shutting Down..."
+			sudo shutdown -h now
+			sleep 30
+			counter=0
+		fi
+ 	else
+		counter=0
+ 	fi
+ 	sleep 0.1
+done
