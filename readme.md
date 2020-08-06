@@ -29,6 +29,9 @@ If you want to add functionality, you can modify .pas source code and compile it
 # Install shutdownbutton as a service
 
 ~~~bash
+apt update
+apt install raspi-gpio
+#
 cp ./shutdownbutton /usr/local/sbin
 sudo chmod +x /usr/local/sbin/shutdownbutton 
 #
