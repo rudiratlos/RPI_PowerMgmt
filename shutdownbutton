@@ -2,7 +2,7 @@
 # required package:
 # apt-get install raspi-gpio
 ##### edit area start
-scriptver="V1.4"
+scriptver="V1.5"
 gpionum=24
 cnt4shutdown=3
 logf="/var/log/shutdownbutton.log"
@@ -40,7 +40,7 @@ function Poll_GPIO {
 			echo "Button pressed ($gpiolvl)..."
 			((counter = counter + 1))
 			if [ "$counter" -ge "$cnt4shutdown" ] ; then
-				/bin/sleep 3
+#				/bin/sleep 3
 				DO_shutdown
 				counter=0
 			fi

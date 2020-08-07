@@ -7,14 +7,14 @@ program PumpShutdownReboot;  // Version 3.1
    - Push-Button shorts to GND and is connected to ATTiny and a RPI GPIO IN
             (do not use external PullUps, both will/should use internal PullUps).
             Relais will be switched ON, if there is a GND signal for longer than 1sec
-            Relais will be switched OFF after 12sec, if there is a GND signal for longer than 3secs
+            Relais will be switched OFF after 10sec, if there is a GND signal for longer than 3secs
    - Relais OUT (use Transistor driver) which will supply RPI backpowered on Pins 2&4 with 5V
 
    Functions:
      - LED dimming RED:         Relais is OFF, 3.3V not in allowed range -> 0V
      - LED steady  RED:         Relais is ON,  3.3V not in allowed range
      - LED blink   RED:         3.3V Overvoltage detected or
-                                    Relais will switch off within 12sec
+                                    Relais will switch off within 10sec
      - LED dimming GREEN:       Voltage was/is below 3.3V
                                     will be reset to steady Green after some secs
                                     e.g. indicate Powersupply is not stable
@@ -48,7 +48,7 @@ const
 //Regulator NCP1117-3.3V: // min. Vout: 3.235 // max. Vout: 3.365
   OVR33Volt= 4.2;  // 3.9 range values, that will work with a lousy Powersupply
   OK33VoltH= 3.8;  // 3.5
-  OK33VoltL= 3.1;  // 2.9
+  OK33VoltL= 2.9;  // 3.1
   OK33Volt=  OK33VoltL+((OK33VoltH-OK33VoltL)/2);
 
 //https://www.mikrocontroller.net/articles/LED-Fading
@@ -65,7 +65,7 @@ const
   cntBootUp=      984 div wtim;  // <1sec Button has to be pressed to recognize a Bootstrap
   cntShutDwn=    2976 div wtim;  // <3sec Button has to be pressed to recognize
 //rpi_hal has 3000msec / 1000msec and 7msec debounce time
-  cntoffmax=    12000 div wtim;  //  12sec waittime for RPI shutdown-/boot-process
+  cntoffmax=    10000 div wtim;  //  10sec waittime for RPI shutdown-/boot-process
   cntPwrENAmin=     3  *  wtim;  // minimum 36msec PwrEna
   cntPwrENAmax=  2976 div wtim;  // maximum <3 sec PwrEna
   cntresetVfail= cntoffmax;
