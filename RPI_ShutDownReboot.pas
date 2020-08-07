@@ -1,4 +1,4 @@
-program PumpShutdownReboot;  // Version 3.1
+program PumpShutdownReboot;  // Version 3.2
 (* Shutdown/Reboot function for RPI, with Voltage observation and
    Status signalling with BiColor LED with 3 Pins (red/green/GND).
    Use 330Ohm Resistor between LED Kathode and GND
@@ -68,6 +68,7 @@ const
   cntoffmax=    10000 div wtim;  //  10sec waittime for RPI shutdown-/boot-process
   cntPwrENAmin=     3  *  wtim;  // minimum 36msec PwrEna
   cntPwrENAmax=  2976 div wtim;  // maximum <3 sec PwrEna
+  cntBootTime=  15000 div wtim;  // suppose 15sec rpi BootTime
   cntresetVfail= cntoffmax;
   cntLEDoffmax=  1500 div wtim;  // 1.5sec offtime @ dimming and idx =0
   cntblinkmaxc=   500 div wtim;  // counter for  1Hz
@@ -506,7 +507,7 @@ begin
   end
   else
   begin
-    rpiNextSTATE(rpiDOboot,  rpiON,    cntPwrENAmax,cntPwrENA);
+    rpiNextSTATE(rpiDOboot,  rpiON,    cntBootTime, cntPwrENA);  //15sec BootTime
     rpiNextSTATE(rpiDOreboot,rpiDOboot,cntPwrENAmax,cntPwrENA);  // 3sec -> reset
 
     if (rpiSTATE=rpiOFF) or (rpiSTATE=rpiON) then cntPwrENA:=0;
