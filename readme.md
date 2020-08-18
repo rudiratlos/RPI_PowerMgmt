@@ -5,11 +5,11 @@ ATtiny45/85 as Powermanagement chip for RPI
 functions:
 
 - press push button for 1 second  to switchON relais and rpi will boot 
-- press push button for 3 seconds to initiate clean shutdown, after 12 seconds Relais will switchOFF 5V power
+- press push button for 3 seconds to initiate clean shutdown, after 10 seconds Relais will switchOFF 5V power
 - service script 'shutdownbutton', simulates a 3 second button press, if OS command shutdown -h was executed (no push button was pressed)
 - status BiColor LED (red/green)  
 
-If you want to add functionality, you can modify .pas source code and compile it with mikropascal to generate .hex flash file
+If you want to add functionality, you can modify .ino source code and compile it with Arduino IDE to generate new .hex file
 
 
 Video:
