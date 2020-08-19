@@ -1,4 +1,4 @@
-//PumpShutdownReboot Version 4.0 Arduino Scetch 
+//PumpShutdownReboot Version 4.1 Arduino IDE Sketch 
 #undef RelaisPinToPB1
 #undef DigiSpark4Test
 /*
@@ -42,9 +42,17 @@ Functions:
 
    avrdude -F -p attiny45 -P usb -c stk500V2 -U lfuse:w:0xe2:m -U hfuse:w:0x5f:m -U flash:w:<file2flash>.hex
 
+   install ATTiny45/85 Tool:
+   https://www.kollino.de/arduino/attiny-support-unter-arduino-1-6-installieren/
+
+   http://drazzy.com/package_drazzy.com_index.json
+
    use Arduino IDE to generate .hex flash file to program ATtiny 
-   Prozessor: ATtiny45 or ATtiny85
-   Clock:     Internal 8MHz
+   
+   Tools Setup Tab (BoardManagement):
+   Board: ATtiny25/45/85 (No bootloader)
+   Chip:  ATtiny45 or ATtiny85
+   Clock: 8 MHz (internal)
 */
 
 // PINdefinition
@@ -374,7 +382,7 @@ word _gcnt;
     rpiSTATE= rpiDOshutdown;
       
     while (_gcnt < cntoffmax) { // RPI shutdown process (>10sec)
-      GetVREF();
+      if ((_gcnt % 100)==0) GetVREF(); // every 1 sec
       if ((VCCstat<=0) && (TEMPstat<=0)) {
         SetLED4status();
         delay(wtim);   
