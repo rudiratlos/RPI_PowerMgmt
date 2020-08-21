@@ -1,6 +1,6 @@
 # Powermanagement for RPI
 
-ATtiny45/85 as Powermanagement chip for RPI
+ATtiny85 as Powermanagement chip for RPI
 
 functions:
 
@@ -53,7 +53,7 @@ chmod +x avrdude.sh
 ~~~
 
 
-# Burn ATtiny45/85 with avrdude
+# Burn ATtiny85 with avrdude
 
 connect a stk500V2 compatible AVR programmer on rpi USB port
 
@@ -61,7 +61,7 @@ connect a stk500V2 compatible AVR programmer on rpi USB port
 avrdude.sh
 ~~~ 
 
-use .hex file directly to flash ATtiny45/85
+use .hex file directly to flash ATtiny85
 avrdude.sh shellscript uses avrdude as flashing utility.
 
 ![flashing](./img/avrdude_Programmer_on_RPI_ATtiny45.jpg)
