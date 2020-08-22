@@ -1,4 +1,4 @@
-/* PumpShutdownReboot Version 5.0 Arduino IDE Sketch
+/* PumpShutdownReboot Version 5.1 Arduino IDE Sketch
 Shutdown/Reboot function for RPI, with Voltage observation and
    Status signalling with BiColor LED with 3 Pins (red/green/GND).
    Use 330Ohm Resistor between LED Cathode and GND
@@ -57,7 +57,7 @@ Functions:
   const byte LEDredPIN =   PB4; // Pin3 
   const byte RelaisPIN =   PB5; // Pin1
  
-  const long SerBaud=    19200; // 9600, 19200, 38400, 57600, 115200
+  const long SerBaud=      300; // 300, 600, 1200, 2400, 4800, 9600, 19200
 
 //ADC-Values
   const float BGtolD=     0.75; // ScaleDown, due to ATtiny85 BandGap tolerance
@@ -164,7 +164,7 @@ void SetPWMout(byte PWMval) { analogWrite(PWMpin, PWMval); }
 
 void TinyInit() {
   swSer.begin(SerBaud);
-  swSer.setTimeout(200);
+  swSer.setTimeout(250);
 
   pinMode(ButtonPIN,   INPUT_PULLUP);
   
