@@ -1,4 +1,4 @@
-/* PumpShutdownReboot Version 5.1 Arduino IDE Sketch
+/* PumpShutdownReboot Version 5.2 Arduino IDE Sketch
 Shutdown/Reboot function for RPI, with Voltage observation and
    Status signalling with BiColor LED with 3 Pins (red/green/GND).
    Use 330Ohm Resistor between LED Cathode and GND
@@ -111,28 +111,21 @@ Functions:
   const byte  rpiDOboot=4,   rpiDOboot2=5,    rpiON=6;
   const byte  rpiDOreboot=7, rpiDOshutdown=8, rpiAlarmOFF=9;
 
-  const byte  eeprom_pattern=0xf0;
+  const byte  eeprom_pattern=0xe1;
 
-  bool  PWMup=true,BUTpres=false,Blink=false;
+  bool  PWMup=true,BUTpres=false,Blink=false,STBYmodeCanGoSleep=false;
   int   VCCstat=0,VCCstatLast=-2,V33stat=0,V33statLast=-2,TEMPstat=0,TEMPstatLast=-2;
   byte  rpiSTATE=rpiOFF,rpiSTATElast=rpiNEW,LEDstate=rpiSTATE,LED=LEDredPIN;
   byte  RelaisStat=LOW,PWMidx=0,PWMmax=PWMtabmax,FadeCnt=FadeCntMax,PWMoutLvl=PWMdflt;
+  byte  boot_reason=0,blkwtim=0;
   word  BGraw,BG2raw,V33raw;
   word  cntPwrENA=0,BlinkCnt=0,BlinkMax=cntblinkmaxc,ERRcnt=0,LEDoffCnt=0,gcnt=0;
   float VREF=VCCokVolt,V33=V33okVolt,BGd=1.0;
 
+#include <avr/wdt.h>
 #include <EEPROM.h>
 #include <SoftwareSerial.h> 
 SoftwareSerial swSer(ButtonPIN, LEDgreenPIN); // RX, TX  
-
-/*void blk(byte cnt)  {
-  for (byte _i= 1; _i<=cnt; _i++) {
-    digitalWrite(LEDgreenPIN, HIGH);
-    delay(500);
-    digitalWrite(LEDgreenPIN, LOW); 
-    delay(500);
-  }
-}*/
 
 void EEPROMsave() {
   EEPROM.write(0, eeprom_pattern);
@@ -143,7 +136,9 @@ void EEPROMread() {
   if (EEPROM.read(0) != eeprom_pattern) { 
     PWMoutLvl=PWMdflt;
     EEPROMsave(); 
-  } else PWMoutLvl= EEPROM.read(2);
+  } else { 
+    PWMoutLvl= EEPROM.read(2);
+  }
 }
 
 void InitVARs() {
@@ -151,7 +146,9 @@ void InitVARs() {
   cntPwrENA= 0; BlinkCnt= 0; ERRcnt= 0;
 }
 
-void Input_Read() { BUTpres=(digitalRead(ButtonPIN)==LOW); } // active low
+void Input_Read() { 
+  BUTpres=(digitalRead(ButtonPIN)==LOW); 
+} // active low
 
 void SetRelais(byte relstat) {
   InitVARs();
@@ -160,33 +157,10 @@ void SetRelais(byte relstat) {
   RelaisStat= relstat;
 }
 
-void SetPWMout(byte PWMval) { analogWrite(PWMpin, PWMval); }
-
-void TinyInit() {
-  swSer.begin(SerBaud);
-  swSer.setTimeout(250);
-
-  pinMode(ButtonPIN,   INPUT_PULLUP);
-  
-  pinMode(LEDgreenPIN, OUTPUT);
-  pinMode(LEDredPIN,   OUTPUT);
-  
-//pinMode(ADCpin,      INPUT);
- 
-  pinMode(RelaisPIN,   OUTPUT); 
-  RelaisStat=HIGH; // force delay
-  SetRelais(LOW);  // switch off
-
-  pinMode(PWMpin,      OUTPUT);
-  SetPWMout(0);
-  EEPROMread();
-}
-
-void WriteLED(byte lednr, byte PWMval) {
-  switch (lednr) {
-    case LEDredPIN:
-           analogWrite(LEDredPIN, PWMval);      
-         break; 
+void SetPWMout(byte pinnr, byte PWMval) {
+  switch (pinnr) {
+    case PWMpin:     analogWrite(PWMpin,    PWMval); break;
+    case LEDredPIN:  analogWrite(LEDredPIN, PWMval); break; 
     case LEDgreenPIN:
            if (PWMval>=0x80) 
                 digitalWrite(LEDgreenPIN, HIGH); 
@@ -195,16 +169,40 @@ void WriteLED(byte lednr, byte PWMval) {
   } // switch
 }
 
+void EnaLED(byte lednr) {
+  switch (lednr) { // switch other LED off  
+    case LEDredPIN:   SetPWMout(LEDgreenPIN, PWMtab[0]); break;      
+    case LEDgreenPIN: SetPWMout(LEDredPIN,   PWMtab[0]); break;
+  } // switch
+  SetPWMout(lednr, PWMtab[0]); // set LED to PWM level
+}
+
 void SetLED(byte lednr, byte PWMmaxidx) {
   LED= lednr; PWMmax= PWMmaxidx;
-  switch (lednr) { // switch other LED off  
-    case LEDredPIN:   WriteLED(LEDgreenPIN, PWMtab[0]); break;      
-    case LEDgreenPIN: WriteLED(LEDredPIN,   PWMtab[0]); break;
-  } // switch
-  WriteLED(lednr, PWMtab[0]); // set LED to PWM level
+  EnaLED(lednr);
+}
+
+void BlinkLED(byte lednr, byte count) {
+  EnaLED(lednr);                         
+  if (blkwtim != 0) {  
+    wdt_reset();                                      delay(500); 
+  }
+  for (byte x=0;x<count;x++) {
+    wdt_reset(); SetPWMout(lednr, PWMtab[PWMtabmax]); delay(500);
+    wdt_reset(); SetPWMout(lednr, PWMtab[0]);         delay(500); 
+  }
+  wdt_reset();
+}
+
+void BootReasonFlashLED(byte reason) {
+  if ((reason&(1<<EXTRF))!=0) BlinkLED(LEDgreenPIN, 1); // ExternalReset = 1 flashes
+  if ((reason&(1<<PORF))!=0)  BlinkLED(LEDgreenPIN, 2); // PowerOn = 2 flashes
+  if ((reason&(1<<WDRF))!=0)  BlinkLED(LEDredPIN,   3); // Watchdog = 3 flashes
+  if ((reason&(1<<BORF))!=0)  BlinkLED(LEDredPIN,   4); // BrownOut = 4 flashes
 }
 
 void SetPWMidx(byte mode) {
+  STBYmodeCanGoSleep= false;
   switch (mode) {
     case     LEDoff: // steady OFF
                PWMidx= 0;      PWMup= true;  FadeCnt= 0; 
@@ -227,14 +225,18 @@ void SetPWMidx(byte mode) {
                       PWMup=  true; 
                       PWMidx= 1; 
                       LEDoffCnt=   0;
-                    } else LEDoffCnt++;
+                    } else {
+                        LEDoffCnt++;
+                        STBYmodeCanGoSleep= true;
+                      }
+                    
                   } else PWMidx--;
                 }
               } else FadeCnt++;
             break;
   } // switch
 
-  if (FadeCnt==0) WriteLED(LED, PWMtab[PWMidx]);
+  if (FadeCnt==0) SetPWMout(LED, PWMtab[PWMidx]);
 }
 
 void StartBlink(bool alarm) {
@@ -400,16 +402,16 @@ void AD_Init(byte mode) {
 
 void GetVREF() {
 byte _state;
-  _state=LEDstate; 
-// meassure VCC and prepare for further ADC readings
-  AD_Init(0x0c); // determine VCC (Value in Vref)
-  AD_Read(0x0c);
-  AD_Init(0x9c); // determine BandGap delta 1.1 vs. 2.56V
-  AD_Read(0x9c); 
-  AD_Init(0x8f); // determine chip temperature
-  AD_Read(0x8f);
-  AD_Init(0x00); // connect PB2 to DAC, determine Vin (3.3V from rpi)
-  AD_Read(0x00);
+  _state=LEDstate;
+//meassure VCC and prepare for further ADC readings
+    AD_Init(0x0c); // determine VCC (Value in Vref)
+    AD_Read(0x0c);
+    AD_Init(0x9c); // determine BandGap delta 1.1 vs. 2.56V
+    AD_Read(0x9c); 
+    AD_Init(0x8f); // determine chip temperature
+    AD_Read(0x8f);
+    AD_Init(0x00); // connect PB2 to DAC, determine Vin (3.3V from rpi)
+    AD_Read(0x00);
   if (_state!=LEDstate) SetupLED();
   LEDstate=_state;
 }
@@ -424,6 +426,7 @@ void DoRelais(bool stat) {
     rpiSTATE= rpiDOshutdown;
       
     while (gcnt < cntoffmax) { // RPI shutdown process (>10sec)
+      wdt_reset();
       if ((gcnt % cnt1sec)==0) GetVREF(); // every 1 sec
       if ((VCCstat<=0) && (TEMPstat<=0)) {
         SetLED4status();
@@ -432,7 +435,7 @@ void DoRelais(bool stat) {
       gcnt++;
     }
 
-    SetPWMout(0);
+    SetPWMout(PWMpin, 0);
  
     SetRelais(LOW);
     rpiSTATE= rpiOFF;
@@ -487,41 +490,69 @@ void STATEmachine() {
     case rpiSwitchOn:   DoRelais(false); break;
     case rpiDOshutdown: DoRelais(true);  break;
     case rpiAlarmOFF:   DoRelais(true);  break;
-    case rpiDOboot2:    SetPWMout(PWMoutLvl); break;
+    case rpiDOboot2:    SetPWMout(PWMpin, PWMoutLvl); break;
   } // switch
 }
 
 void setup() {
-  TinyInit();
+  boot_reason= MCUSR; 
+  MCUSR= 0;
+  wdt_disable();
+  
+  swSer.begin(SerBaud);
+  swSer.setTimeout(250);
+
+  pinMode(ButtonPIN,        INPUT_PULLUP);
+  
+  pinMode(LEDgreenPIN,      OUTPUT);
+  digitalWrite(LEDgreenPIN, LOW);
+    
+  pinMode(LEDredPIN,        OUTPUT);
+  digitalWrite(LEDredPIN,   LOW);
+  
+//pinMode(ADCpin,           INPUT);
+ 
+  pinMode(RelaisPIN,        OUTPUT); 
+  RelaisStat=HIGH; // force delay
+  SetRelais(LOW);  // switch off
+
+  pinMode(PWMpin,           OUTPUT);
+  SetPWMout(PWMpin, 0);
+  EEPROMread();
+
+  BootReasonFlashLED(boot_reason);
+  blkwtim= 500;
+
+  wdt_enable(WDTO_2S); // 2secs timeout
 }
 
 void loop() {
+    wdt_reset();
     Input_Read();
     
     if (gcnt>=cnt1sec) {
-      if (!BUTpres) {
-        GetVREF();
-      }
+      if (!BUTpres) GetVREF();
       gcnt= 0;
-    } else {
-       if ((gcnt % cnt100ms)==0) {
-         if (swSer.peek()!=-1) {
-           String str = swSer.readStringUntil('\n');
-           str.toUpperCase(); str.trim();
+    } 
 
-           if (str.indexOf("SHUT")>=0) rpiSTATE= rpiDOshutdown;
-           if (str.indexOf("BOOT")>=0) rpiSTATE= rpiSwitchOn;
-           if (str.indexOf("ESAV")>=0) EEPROMsave();
-           
-           if (str.indexOf("DIM")>=0) {
-             str.replace("DIM",""); str.trim();
-               if (str.length()>0) {
-                 PWMoutLvl= str.toInt();
-                 SetPWMout(PWMoutLvl);  
-               } 
-           }
-         }
-       }
+    if (swSer.peek()!=-1) {
+      String str = swSer.readStringUntil('\n');
+      str.toUpperCase(); 
+      str.trim();
+
+      if  (str.length()>3) {
+        byte bpar = str.substring(3).toInt();
+            
+        if (str.startsWith("SHUT")) rpiSTATE= rpiDOshutdown;
+        if (str.startsWith("BOOT")) rpiSTATE= rpiSwitchOn;
+        if (str.startsWith("ESAV")) EEPROMsave();
+        if (str.startsWith("BLG"))  BlinkLED(LEDgreenPIN,bpar); // eg. BLG3 LEDgreen blink 3x 
+        if (str.startsWith("BLR"))  BlinkLED(LEDredPIN,  bpar); // eg. BLR5 LEDred blink 5x
+        if (str.startsWith("DIM"))  { // eg. DIM204 set pwm level to 80% (204/255)
+          PWMoutLvl= bpar;
+          SetPWMout(PWMpin, PWMoutLvl);  
+        }
+      }
     }
     
     STATEmachine();
