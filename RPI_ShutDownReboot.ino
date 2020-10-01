@@ -1,4 +1,4 @@
-/* PumpShutdownReboot Version 5.2 Arduino IDE Sketch
+/* PumpShutdownReboot Version 5.3 Arduino IDE Sketch
 Shutdown/Reboot function for RPI, with Voltage observation and
    Status signalling with BiColor LED with 3 Pins (red/green/GND).
    Use 330Ohm Resistor between LED Cathode and GND
@@ -57,7 +57,7 @@ Functions:
   const byte LEDredPIN =   PB4; // Pin3 
   const byte RelaisPIN =   PB5; // Pin1
  
-  const long SerBaud=      300; // 300, 600, 1200, 2400, 4800, 9600, 19200
+  const long SerBaud=     2400; // 300, 600, 1200, 2400, 4800, 9600, 19200
 
 //ADC-Values
   const float BGtolD=     0.75; // ScaleDown, due to ATtiny85 BandGap tolerance
@@ -184,7 +184,7 @@ void SetLED(byte lednr, byte PWMmaxidx) {
 
 void BlinkLED(byte lednr, byte count) {
   EnaLED(lednr);                         
-  if (blkwtim != 0) {  
+  if ((blkwtim != 0) && (count != 0)) {  
     wdt_reset();                                      delay(500); 
   }
   for (byte x=0;x<count;x++) {
@@ -535,23 +535,19 @@ void loop() {
       gcnt= 0;
     } 
 
-    if (swSer.peek()!=-1) {
-      String str = swSer.readStringUntil('\n');
-      str.toUpperCase(); 
+    if (swSer.available() > 0) {
+      String str = swSer.readStringUntil('\n'); 
       str.trim();
-
-      if  (str.length()>3) {
-        byte bpar = str.substring(3).toInt();
-            
-        if (str.startsWith("SHUT")) rpiSTATE= rpiDOshutdown;
-        if (str.startsWith("BOOT")) rpiSTATE= rpiSwitchOn;
-        if (str.startsWith("ESAV")) EEPROMsave();
-        if (str.startsWith("BLG"))  BlinkLED(LEDgreenPIN,bpar); // eg. BLG3 LEDgreen blink 3x 
-        if (str.startsWith("BLR"))  BlinkLED(LEDredPIN,  bpar); // eg. BLR5 LEDred blink 5x
-        if (str.startsWith("DIM"))  { // eg. DIM204 set pwm level to 80% (204/255)
-          PWMoutLvl= bpar;
-          SetPWMout(PWMpin, PWMoutLvl);  
-        }
+      str.toUpperCase();
+      byte bpar = str.substring(3).toInt();
+      if (str.startsWith("SHUT")) rpiSTATE= rpiDOshutdown;
+      if (str.startsWith("BOOT")) rpiSTATE= rpiSwitchOn;
+      if (str.startsWith("ESAV")) EEPROMsave();       
+      if (str.startsWith("BLG"))  BlinkLED(LEDgreenPIN,bpar); // eg. BLG3 LEDgreen blink 3x 
+      if (str.startsWith("BLR"))  BlinkLED(LEDredPIN,  bpar); // eg. BLR5 LEDred blink 5x
+      if (str.startsWith("DIM"))  { // eg. DIM204 set pwm dutycycle to 204/255
+        PWMoutLvl= bpar;
+        SetPWMout(PWMpin, PWMoutLvl);  
       }
     }
     
@@ -559,5 +555,5 @@ void loop() {
     SetLED4status();
     gcnt++;
     delay(wtim);
-}
+}  
 
